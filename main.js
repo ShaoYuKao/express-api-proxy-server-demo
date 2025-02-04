@@ -3,13 +3,14 @@ const express = require("express");          // Express 框架，用於建立 We
 const fs = require('fs');                    // 檔案系統模組，用於檔案操作
 const zlib = require('zlib');                // 壓縮模組，用於處理 gzip 壓縮
 const path = require('path');                // 路徑處理模組
+const log4js = require("log4js");            // 日誌記錄器
 const { createProxyMiddleware } = require('http-proxy-middleware');  // 代理中介軟體
+
 // body-parser 相關套件，用於解析不同類型的請求主體
 const textBody = require("body");            // 解析純文字
 const jsonBody = require("body/json");       // 解析 JSON
 const formBody = require("body/form");       // 解析表單資料
 const anyBody = require("body/any");         // 通用解析器
-const log4js = require("log4js");            // 日誌記錄器
 
 // 設定應用程式基本參數
 const _app_folder = __dirname;               // 目前程式執行的目錄路徑
@@ -17,6 +18,23 @@ const _app_folder = __dirname;               // 目前程式執行的目錄路�
 // 定義要忽略的檔案路由清單
 const ignoreFileRoutes = ['/main.js', '/package-lock.json', '/package.json', 
   '/.copilot-commit-message-instructions.md', '/.gitignore', '/README.md'];
+
+// 設定日誌記錄器
+log4js.configure({
+  appenders: {
+    everything: {
+      type: "dateFile",
+      filename: "logs/all-the-logs.log",
+      maxLogSize: 10 * 1024 * 1024, // = 10Mb
+      pattern: "yyyy-MM-dd-hh",
+      compress: true,
+    },
+    console: { type: 'console' },
+  },
+  categories: {
+    default: { appenders: ["everything", "console"], level: "debug" },
+  },
+});
 
 const logger = log4js.getLogger();           // 創建日誌記錄器
 logger.level = 'all';                        // 設定日誌記錄器的日誌級別
@@ -28,6 +46,9 @@ const app = express();
 const PORT = (process.env.PORT || 3000);     // 伺服器埠號，預設 3000
 // const API_SERVICE_URL = "https://jsonplaceholder.typicode.com";  // 代理目標 API
 const API_SERVICE_URL = "http://127.0.0.1:3001";  // 代理目標 API
+
+// 設定日誌記錄器中介軟體
+app.use(log4js.connectLogger(logger, { level: 'auto' }));
 
 // 紀錄器中介軟體：記錄每個請求的處理時間和基本資訊
 app.use((req, res, next) => {
@@ -166,7 +187,8 @@ const bodyParserPostProcessing = (req, res) => {
 app.use('/my-service', createProxyMiddleware({
   target: API_SERVICE_URL,     // 代理目標
   changeOrigin: true,         // 改變請求來源
-  logger: console,            // 使用控制台進行紀錄
+  // logger: console,            // 使用控制台進行紀錄
+  logger,
   on: {
     // 處理代理請求前的操作
     proxyReq: (proxyReq, req, res) => {
@@ -305,7 +327,9 @@ app.all('*', (req, res) => {
 
 // 啟動伺服器
 app.listen(PORT, () => {
-  logger.info(`Server is running on port ${PORT}`);
+  const serverStartTime = new Date().toISOString();
+  const message = `Server start time: ${serverStartTime}, Server is running on port ${PORT}`;
+  logger.info(message);
 });
 
 /**
