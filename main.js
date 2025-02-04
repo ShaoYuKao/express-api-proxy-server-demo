@@ -9,6 +9,7 @@ const textBody = require("body");            // 解析純文字
 const jsonBody = require("body/json");       // 解析 JSON
 const formBody = require("body/form");       // 解析表單資料
 const anyBody = require("body/any");         // 通用解析器
+const log4js = require("log4js");            // 日誌記錄器
 
 // 設定應用程式基本參數
 const _app_folder = __dirname;               // 目前程式執行的目錄路徑
@@ -16,6 +17,9 @@ const _app_folder = __dirname;               // 目前程式執行的目錄路�
 // 定義要忽略的檔案路由清單
 const ignoreFileRoutes = ['/main.js', '/package-lock.json', '/package.json', 
   '/.copilot-commit-message-instructions.md', '/.gitignore', '/README.md'];
+
+const logger = log4js.getLogger();           // 創建日誌記錄器
+logger.level = 'all';                        // 設定日誌記錄器的日誌級別
 
 // 建立 Express 應用程式實例
 const app = express();
@@ -38,7 +42,7 @@ app.use((req, res, next) => {
       duration: `${duration}ms`,
       requestIP: req.ip || null
     };
-    console.log("Request-Response Log:", logInfo);
+    logger.info("Request-Response Log:",logInfo);
   });
   next();
 });
@@ -70,10 +74,10 @@ const bodyParserPreProcessing = (req, res) => {
   // 根據不同的 Content-Type 使用對應的解析器
   // 處理純文字內容
   if (contentType && contentType.includes('text/plain')) {
-    console.log("=== text/plain start ===");
+    logger.trace("=== text/plain ===");
     textBody(req, res, (err, body) => {
       if (err) {
-        console.log('err', err.stack || err.toString());
+        logger.error('contentType text/plain err', err.stack || err.toString());
       }
       req.payload = body || null;
     })
@@ -81,10 +85,10 @@ const bodyParserPreProcessing = (req, res) => {
 
   // 處理 JSON 內容
   if (contentType && contentType.includes('application/json')) {
-    console.log("=== application/json start ===");
+    logger.trace("=== application/json ===");
     jsonBody(req, res, (err, body) => {
       if (err) {
-        console.log('err', err.stack || err.toString());
+        logger.error('contentType application/json err', err.stack || err.toString());
       }
       req.payload = body || null;
     })
@@ -92,10 +96,10 @@ const bodyParserPreProcessing = (req, res) => {
 
   // 處理 URL 編碼的表單資料
   if (contentType && contentType.includes('application/x-www-form-urlencoded')) {
-    console.log("=== application/x-www-form-urlencoded start ===");
+    logger.trace("=== application/x-www-form-urlencoded ===");
     anyBody(req, res, (err, body) => {
       if (err) {
-        console.log('err', err.stack || err.toString());
+        logger.error('contentType application/x-www-form-urlencoded err', err.stack || err.toString());
       }
       req.payload = body || null;
     })
@@ -103,10 +107,10 @@ const bodyParserPreProcessing = (req, res) => {
 
   // 處理多部分表單資料
   if (contentType && contentType.includes('multipart/form-data')) {
-    console.log("=== multipart/form-data start ===");
+    logger.trace("=== multipart/form-data ===");
     formBody(req, res, (err, body) => {
       if (err) {
-        console.log('err', err.stack || err.toString());
+        logger.error('contentType multipart/form-data err', err.stack || err.toString());
       }
       req.payload = body || null;
     })
@@ -189,7 +193,7 @@ app.use('/my-service', createProxyMiddleware({
           try {
             responseBody = zlib.gunzipSync(bodyBuffer).toString('utf8');
           } catch (error) {
-            console.log('error', error.stack || error.toString());
+            logger.error('proxyRes zlib.gunzipSync error', error.stack || error.toString());
           }
         } else {
           // 如果 Response 未被壓縮
@@ -245,19 +249,18 @@ app.use('/my-service', createProxyMiddleware({
         };
         
         const duration = Date.now() - req.startTime; // 計算請求時間
-        // console.log(`duration: ${duration}ms`);
 
         const logInfo = {
           Request: reqInfo,
           Response: resInfo,
           duration: `${duration}ms`
         };
-        console.log(logInfo);
+        logger.info(logInfo);
       });
     },
     // 處理錯誤情況
     error: (err, req, res) => {
-      console.log('handle error', err);
+      logger.error('handle error', err);
     }
   }
 }));
@@ -294,7 +297,7 @@ app.all('*', (req, res) => {
       requestIP: req.ip || null,
       error: error.stack || error.toString()
     };
-    console.log("error", errorInfo);
+    logger.error("app.all error", errorInfo);
     notFound(req, res);
     return;
   }
@@ -302,7 +305,7 @@ app.all('*', (req, res) => {
 
 // 啟動伺服器
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  logger.info(`Server is running on port ${PORT}`);
 });
 
 /**
@@ -312,7 +315,7 @@ app.listen(PORT, () => {
  */
 function notFound(req, res) {
   const requestUrl = req.url;
-  console.log(`404 Not Found: ${requestUrl}`);
+  logger.info(`404 Not Found: ${requestUrl}`);
   res.status(404).send('404 Not Found');
   return;
 }
