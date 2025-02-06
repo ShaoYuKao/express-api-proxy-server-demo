@@ -19,14 +19,20 @@ const _app_folder = __dirname;               // 目前程式執行的目錄路�
 const ignoreFileRoutes = ['/main.js', '/package-lock.json', '/package.json', 
   '/.copilot-commit-message-instructions.md', '/.gitignore', '/README.md'];
 
+// 設定日誌檔案路徑
+const logFilePath = "logs/all-the-logs.log";
+if (process.env.Log_File_Path) {
+  logFilePath = `${process.env.Log_File_Path}`;
+}
+
 // 設定日誌記錄器
 log4js.configure({
   appenders: {
     everything: {
       type: "dateFile",
-      filename: "logs/all-the-logs.log",
+      filename: logFilePath,
       maxLogSize: 10 * 1024 * 1024, // = 10Mb
-      pattern: "yyyy-MM-dd-hh",
+      pattern: "yyyy-MM-dd",
       numBackups: Number.MAX_SAFE_INTEGER - 1,
       compress: true,
     },
