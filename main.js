@@ -27,6 +27,7 @@ log4js.configure({
       filename: "logs/all-the-logs.log",
       maxLogSize: 10 * 1024 * 1024, // = 10Mb
       pattern: "yyyy-MM-dd-hh",
+      numBackups: Number.MAX_SAFE_INTEGER - 1,
       compress: true,
     },
     console: { type: 'console' },
@@ -45,7 +46,7 @@ const app = express();
 // 基本配置
 const PORT = (process.env.PORT || 3000);     // 伺服器埠號，預設 3000
 // const API_SERVICE_URL = "https://jsonplaceholder.typicode.com";  // 代理目標 API
-const API_SERVICE_URL = "http://127.0.0.1:3001";  // 代理目標 API
+const API_SERVICE_URL = "http://127.0.0.1:3001";
 
 // 設定日誌記錄器中介軟體
 app.use(log4js.connectLogger(logger, { level: 'auto' }));
@@ -188,7 +189,7 @@ app.use('/my-service', createProxyMiddleware({
   target: API_SERVICE_URL,     // 代理目標
   changeOrigin: true,         // 改變請求來源
   // logger: console,            // 使用控制台進行紀錄
-  logger,
+  logger,                     // 使用 log4js 進行紀錄
   on: {
     // 處理代理請求前的操作
     proxyReq: (proxyReq, req, res) => {
@@ -303,14 +304,14 @@ app.get('*.*', express.static(_app_folder, { maxAge: '1y' }));
 // 處理所有其他請求
 app.all('*', (req, res) => {
   try {
-    const filePath = path.join(_app_folder, 'index.html');
+    const filePath = path.join(_app_folder, 'hostingstart.html');
     
     // 判斷目錄的檔案是否存在
     if (!fs.existsSync(filePath)) {
       throw new Error('File not found');
     }
 
-    res.status(200).sendFile(`/`, { root: _app_folder });
+    res.status(200).sendFile(filePath);
   } catch (error) {
     const errorInfo = {
       timestamp: new Date().toISOString(),
@@ -329,6 +330,7 @@ app.all('*', (req, res) => {
 app.listen(PORT, () => {
   const serverStartTime = new Date().toISOString();
   const message = `Server start time: ${serverStartTime}, Server is running on port ${PORT}`;
+  console.log(message);
   logger.info(message);
 });
 
